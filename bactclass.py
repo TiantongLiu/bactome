@@ -458,7 +458,7 @@ def generateDT(datafile, label,
                cross_validation=5):
     """!
 
-    @param datafile String: Path to CSV data file used to generate SVM.
+    @param datafile String: Path to CSV data file used to generate DT.
     @param label String: Column (field) name in the data file to indicate the class label.
     @param oclass String: Path to write out the generated classifier. Default = classifier_SVM.pickle
     @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
@@ -569,12 +569,77 @@ ccp_alpha float, default=0.0
     process_classifier(datafile, label, classifier, oclass, otype, 
                        classparam, confusion, classreport, cross_validation)
     print("===================== DT Generated =====================")
+    
+    
+    
+def generateNB(datafile, label, 
+               oclass="classifier_NB.pickle", 
+               otype="pickle",
+               priors=None,
+               classparam=True, 
+               confusion=True, 
+               classreport=True,
+               cross_validation=5):
+"""
+    @param datafile String: Path to CSV data file used to generate naive bayes.
+    @param label String: Column (field) name in the data file to indicate the class label.
+    @param oclass String: Path to write out the generated classifier. Default = classifier_SVM.pickle
+    @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
+    @param priors: Type of prior distribution. Default = None
+    @param classparam Boolean: Flag to indicate whether to print out SVM parameters. Default = True
+    @param confusion Boolean: Flag to indicate whether to print out confusion matrix. Default = True
+    @param classreport Boolean: Flag to indicate whether to print out classification report. Default = True
+    @param cross_validation Integer: Number of cross validation (if any) to perform. If less than 2, cross validation will not be carried out. Default = 5
+    """
+    from sklearn.naivebayes import GaussianNB
+    print("")
+    print("Task: Generate naive_bayes Classifier")
+    print("Parameters:")
+    print("    Data File = " + str(datafile))
+    print("    Classification Label = " + str(label))   
+    print("    Classifier File = " + str(oclass))
+    print("    Classifier File Type = " + str(otype))
+    print("")
+    X, Y = readData(datafile, True, label)
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.20)
+    classifier = GaussianNB(priors=None)
+    classifier.fit(X_train, Y_train)
+    Y_pred = classifier.predict(X_test)
+    saveModel(oclass, otype, classifier)
+    if classparam:
+        showClassifierParameters(classifier)
+    if confusion:
+        showConfusionMatrix(Y_test, Y_pred)
+    if classreport:
+        showClassificationReport(Y_test, Y_pred)
+    if cross_validation > 1:
+        cross_validate(classifier, X, Y, int(cross_validation))
+    print("===================== naive_bayes Generated =====================")
+    
+   
 
+def useNB(datafile, classfile, classtype, resultfile):
+    """!
+    Function to use a previously generated naive bayes
+    to classify data.
+
+    Usage:
+
+        python bactclass.py useNB --datafile=classifier_use.csv --classfile=classifier_NB.pickle --classtype=pickle --resultfile=classifier_result.csv
+    
+    @param datafile String: Path to CSV file containing data to be classified.
+    @param classfile String: Path to the generated classifier.
+    @param classtype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib".
+    @param resultfile String: Path to write out the classified results.
+    """
+    useScikitClassifier("NB", datafile, classfile, classtype, resultfile)
 
 if __name__ == "__main__":
     exposed_functions = {"genANN": generateANN,
                          "genSVM": generateSVM,
+                         "genNB":generateNB
                          "recycle": recycle,
                          "useANN": useANN,
-                         "useSVM": useSVM}
+                         "useSVM": useSVM
+                         "useNB": useNB}
     fire.Fire(exposed_functions)
