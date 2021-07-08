@@ -6,6 +6,8 @@ Date created: 3rd May 2018
 License: GNU General Public License version 3 for academic or 
 not-for-profit use only
 
+Reference: Ling, MHT. 2020. SeqProperties: A Python Command-Line Tool 
+for Basic Sequence Analysis. Acta Scientific Microbiology 3(6): 103-106.
 
 Bactome package is free software: you can redistribute it and/or 
 modify it under the terms of the GNU General Public License as 
@@ -27,8 +29,6 @@ import sys
 try: 
     from Bio import Align
     from Bio import SeqIO
-    from Bio.Alphabet import generic_dna
-    from Bio.Alphabet import generic_rna
     from Bio.Seq import Seq
     from Bio.SeqUtils.ProtParam import ProteinAnalysis
 except ImportError:
@@ -36,11 +36,14 @@ except ImportError:
                            'install', 'biopython'])
     from Bio import Align
     from Bio import SeqIO
-    from Bio.Alphabet import generic_dna
-    from Bio.Alphabet import generic_rna
     from Bio.Seq import Seq
     from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
+import Bio
+biopython_version = float(Bio.__version__)
+if biopython_version < 1.78:
+    from Bio.Alphabet import generic_dna
+    from Bio.Alphabet import generic_rna
 
 try: 
     import fire
@@ -998,7 +1001,7 @@ def flexibility(fastafile, molecule, genetic_code=1, to_stop=True):
     is not peptide, as these options are needed for translation. The 
     output will be in the format of
 
-        <sequence ID> : <flexibility value>
+        <sequence ID> : {<flexibility value>}
 
     @param fastafile String: Path to the FASTA file to be processed.
     @param molecule String: Defines the type of molecule. Three 
@@ -1017,8 +1020,7 @@ def flexibility(fastafile, molecule, genetic_code=1, to_stop=True):
         sequence = _toPeptide(str(o.seqNN[k][0]), molecule, 
                               genetic_code, to_stop)
         try:
-            result = '%0.6f' % sequence.flexibility()
-            data = [k, result]
+            data = [k] + sequence.flexibility()
             data = ' : '.join([str(x) for x in data])
             print(data)
         except ZeroDivisionError:
@@ -1587,15 +1589,240 @@ def random_selection(fastafile, n=250, with_replacement=True,
             print(s[1][0])
         count = count + 1
 
+def pointMutationOverGenerations(organisms=100, length=1000, bases="DNA", 
+                                 mutations=10, mutation_rate=-1,
+                                 algorithm="local", 
+                                 generations=100, tests=100):
+    """!
+    Function to perform naive simulation of a population of sequences 
+    over a number of generations and sample the sequence diversity at 
+    each generation. 
+
+    The simulation is based on the following: (a) an initial population 
+    of identical sequences, (b) population size and sequence length do 
+    not change, (c) number of bases/residues or probability of bases/
+    residues to mutate does not change (probability, if more than zero, 
+    will take precedence over number), (d) equal chance of mutation 
+    per base/residue, (e) no selection or mating process, and (f) 
+    random sampling of organisms to test for sequence diversity with 
+    selfing and resampling possible.
+
+    Usage:
+
+        python seqproperties.py pmog --organisms=100 --length=1000 --bases=DNA --mutations=10 --mutation_rate=-1 --algorithm=local --generations=100 --tests=100
+
+    The CSV output will be in the format of:
+
+        <Generation>, {<Pairwise alignment score>}
+
+    @param organisms Integer: Number of organisms. Default = 100
+    @param length Integer: Sequence length per organism. Default = 1000
+    @param bases String: Defines the type of bases, which can be 'peptide' 
+    for amino acid sequences, 'DNA' for DNA sequences, and 'RNA' for RNA 
+    sequence, or self-defined bases. Default = local
+    @param mutations Integer: Number of bases/residues to mutate per 
+    organism per generation. This will only be used if mutation_rate < 
+    0. Default = 10
+    @param mutation_rate float: Mutation rate where 0.01 or 1e-2 means 
+    mutation rate is 1 in 100 or 1% chances of mutation per base/residue 
+    per generation. If mutation_rate > 0, this will take precedence 
+    over mutation parameter. Default = -1
+    @param algorithm String: Type of pairwise alignment algorithm to 
+    use. Allowable values are 'local' (Smith-Waterman algorithm) 
+    and 'global' (Needleman-Wunsch algorithm). Default = local.
+    @param generations Integer: Number of generations to simulate. 
+    Default = 1000
+    @param tests Integer: Number of pairwise alignments per generation. 
+    Default = 100
+    """
+    if bases == "DNA":
+        bases = [x for x in "ATGC"]
+    elif bases == "RNA":
+        bases = [x for x in "AUGC"]
+    elif bases == "peptide":
+        bases = [x for x in "ACDEFGHIKLMNPQRSTVWY"]
+    else:
+        bases = [x for x in bases]
+    if algorithm == "local":
+        aligner = Align.PairwiseAligner()
+        aligner.mode = "local"
+    elif algorithm == "global":
+        aligner = Align.PairwiseAligner()
+        aligner.mode = "global"
+    seq = [''.join([random.choice(bases) for i in range(int(length))])] * int(organisms)
+    score_header = ','.join(["Score_" + str(i+1) for i in range(tests)])
+    print("Generation,%s" % score_header)
+    mutation_rate = float(mutation_rate)
+    def mutate(s, mutation_rate, mutations):
+        s = [base for base in s]
+        if mutation_rate < 0:
+            for m in range(int(mutations)):
+                s[random.randint(0, len(s)-1)] = random.choice(bases)
+        else:
+            for position in range(len(s)):
+                if random.random() <= mutation_rate:
+                    s[position] = random.choice(bases)
+        return ''.join(s)
+    for gen in range(int(generations)+1):
+        score = [str(aligner.score(random.choice(seq), random.choice(seq))) 
+                 for test in range(int(tests))]
+        print("%s,%s" % (str(gen), ",".join(score)))
+        seq = [mutate(s, mutation_rate, mutations) for s in seq]
+
+def extractFasta(fastafile, keyfile, outfile, match="start"):
+    '''!
+    Function to pull out / extract records from one FASTA file into 
+    another.
+
+    Usage:
+
+        python seqproperties.py extractfasta --fastafile=<original FASTA file> --keyfile=<record list file> --outfile=<new output FASTA file> --match=<type of match>
+
+    @param fastafile String: Path to the FASTA file to be processed - 
+    the original FASTA file to extract data from. 
+    @param keyfile String: Path to a file containing the list of 
+    records - one description per line.
+    @param outfile String: Path to the new FASTA file to be written.
+    @param match String: Type of match. Allowable types are "start" 
+    (matched as long as the start of the descriptor line is the same) 
+    or "full" (full match between descriptor lines).
+    '''
+    infasta = CodonUsageBias()
+    infasta.addSequencesFromFasta(fastafile)
+    kfile = [x[:-1].strip() for x in open(keyfile, "r").readlines()]
+    ofile = open(outfile, "w")
+    ori_FASTA_count = str(len(infasta.seqNN))
+    count = 0
+    for key in kfile:
+        for fastakey in infasta.seqNN:
+            if match == "start":
+                if fastakey.startswith(key):
+                    print("Found: %s --> %s" % (str(key.strip()), 
+                                                str(fastakey.strip())))
+                    ofile.write(">" + str(fastakey.strip()) + '\n')
+                    sequence = str(infasta.seqNN[fastakey][0])
+                    ofile.write(str(sequence) + '\n')
+                    count = count + 1
+                    del infasta.seqNN[fastakey]
+                    break
+            elif match == "full":
+                if fastakey.strip() == key.strip():
+                    print("Found: %s --> %s" % (str(key.strip()), 
+                                                str(fastakey.strip())))
+                    ofile.write("> " + str(fastakey.strip()) + '\n')
+                    sequence = str(infasta.seqNN[fastakey][0])
+                    ofile.write(str(sequence) + '\n')
+                    count = count + 1
+                    del infasta.seqNN[fastakey]
+                    break
+    print("Number of records in original FASTA file: %s" % ori_FASTA_count)
+    print("Number of items in Key File: %s" % str(len(kfile)))
+    print("Number of records matched: %s" % str(count))
+    ofile.close()
+
+def differenceFasta(fastafileA, outfile, fastafileB=None, keyfile=None):
+    '''!
+    Function to pull out / extract records that are found in one FASTA 
+    file (fastafileA) but not in the other FASTA file (fastafileB) or 
+    descriptor listing (keyfile). The output FASTA file will consist of 
+    (fastafileA - fastafileB) or (fastafileA - keyfile). The keyfile (if 
+    given) will take precedence over fastafileB (which means fastafileB)
+
+    Usage:
+
+        python seqproperties.py difffasta --fastafileA=<original FASTA file> --fastafileB=<FASTA file to be subtracted> --keyfile=<record list file to be subtract> --outfile=<new output FASTA file>
+
+    @param fastafileA String: Path to the FASTA file to be processed - 
+    the original FASTA file to subtract data from. 
+    @param fastafileB String: Path to the FASTA file containing record 
+    to be subtracted.
+    @param keyfile String: Path to a file containing the list of 
+    records to be subtracted from fastafileA - one description per line.
+    @param outfile String: Path to the new FASTA file to be written.
+    '''
+    fastaA = CodonUsageBias()
+    fastaA.addSequencesFromFasta(fastafileA)
+    fastaA_keys = list(fastaA.seqNN.keys())
+    ofile = open(outfile, "w")
+    if keyfile:
+        kfile = [x[:-1].strip() 
+                 for x in open(keyfile, "r").readlines()]
+        subtracted_keys = [str(x) for x in fastaA_keys 
+                            if x not in kfile]     
+    else:
+        fastaB = CodonUsageBias()
+        fastaB.addSequencesFromFasta(fastafileB)
+        fastaB_keys = list(fastaB.seqNN.keys())
+        subtracted_keys = [str(x) for x in fastaA_keys 
+                            if x not in fastaB_keys]
+    for key in subtracted_keys:
+        ofile.write(">" + key + '\n')
+        sequence = str(fastaA.seqNN[key][0])
+        ofile.write(str(sequence) + '\n')
+    print("Number of records in FASTA file A: %s" % str(len(fastaA_keys)))
+    if keyfile:
+        print("Number of items in keyfile: %s" % str(len(kfile)))
+    else:
+        print("Number of records in FASTA file B: %s" % str(len(fastaB_keys)))
+    print("Number of records in FASTA file A but not in FASTA file B: %s" % str(len(subtracted_keys)))
+    ofile.close()
+
+def cleanFasta(fastafile, outfile):
+    '''!
+    Function to clean out irrelevant data from a Fasta file - the resulting output Fasta file will only have Fasta records.
+
+    Usage:
+
+        python seqproperties.py cleanfasta --fastafile=<original FASTA file> --outfile=<new output FASTA file>
+
+    @param fastafile String: Path to the FASTA file to be processed.
+    @param outfile String: Path to the new FASTA file to be written.
+    '''
+    data = open(fastafile, "r").readlines()
+    data = [x[:-1] for x in data]
+    data = [x for x in data if x != ""]
+    ofile = open(outfile, "w")
+    fastaR = False
+    for row in data:
+        if row.startswith(">"):
+            fastaR = True
+            ofile.write(row + "\n")
+        elif fastaR == True:
+            ofile.write(row + "\n")
+            fastaR = False
+    ofile.close()
+
+def fastaNGram(fastafile, n):
+    '''!
+    Function to generate starting N-grams of Fasta records.
+
+    Usage:
+
+        python seqproperties.py fastanname --fastafile=<FASTA file> --n=2
+
+    @param fastafile String: Path to the FASTA file to be processed.
+    @param n Integer: Size of n-gram. If n=2, bigram will be generated.
+    '''
+    infasta = CodonUsageBias()
+    infasta.addSequencesFromFasta(fastafile)
+    ngram = set([fastakey[:int(n)] for fastakey in infasta.seqNN])
+    ngram = list(ngram)
+    ngram.sort()
+    print(", ".join(ngram))
+
 if __name__ == '__main__':
     exposed_functions = {'a': percentA,
                          'aacount': aminoacidCount,
                          'ai': percentAi,
                          'aromaticity': aromaticity,
                          'asymfreq': asymmetricFrequency,
+                         'cleanfasta': cleanFasta,
                          'codoncount': codonCount,
                          'complement': complement,
+                         'difffasta': differenceFasta,
                          'extinction': extinction_coefficient,
+                         'extractfasta': extractFasta,
+                         'fastanname': fastaNGram,
                          'count': genericCount,
                          'flexibility': flexibility,
                          'g': percentG,
@@ -1612,6 +1839,7 @@ if __name__ == '__main__':
                          'palign': pairwise_alignment,
                          'palign2': pairwise_alignment2,
                          'plength': peptideLength,
+                         'pmog': pointMutationOverGenerations,
                          'propensity': propensity,
                          'reverse': hasReverse,
                          'rselect': random_selection,

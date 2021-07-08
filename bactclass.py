@@ -6,6 +6,9 @@ Date created: 25th July 2020
 License: GNU General Public License version 3 for academic or 
 not-for-profit use only
 
+Reference: Liu, TT, Ling, MHT. 2020. BactClass: Simplifying the Use of 
+Machine Learning in Biology and Medicine. Acta Scientific Medical 
+Sciences 4(11): 43-47.
 
 Bactome package is free software: you can redistribute it and/or 
 modify it under the terms of the GNU General Public License as 
@@ -48,6 +51,8 @@ def readData(filename, training=True, label="Class"):
     @param label String: Column (field) name in the data file to indicate the class label. Default = Class
     """
     data = pd.read_csv(filename)
+    print("Number of rows in data = " + str(data.shape[0]))
+    print("Number of columns in data = " + str(data.shape[1]))
     if training:
         X = data.drop(label, axis=1)
         Y = data[label]
@@ -142,26 +147,57 @@ def cross_validate(classifier, X, Y, fold):
     print("------------ Cross Validation Report ----------------")
     print("%s fold cross validation" % str(fold))
     print("")
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="precision")
-    print("Precision:                     %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="recall")
-    print("Recall:                        %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="f1")
-    print("F1 Score:                      %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="accuracy")
-    print("Accuracy:                      %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="roc_auc")
-    print("Area Under ROC Curve (AUC):    %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="jaccard")
-    print("Jaccard Similarity:            %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="normalized_mutual_info_score")
-    print("Normalized Mutual Information: %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="v_measure_score")
-    print("V-measure:                     %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="neg_mean_squared_error")
-    print("Mean Square Error (MSE):       %0.3f (sigma = %0.4f)" % (-1*scores.mean(), scores.std()))
-    scores = cross_val_score(classifier, X, Y, cv=fold, scoring="r2")
-    print("R-square:                      %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="precision")
+        print("Precision:                     %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        pass
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="recall")
+        print("Recall:                        %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        pass
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="f1")
+        print("F1 Score:                      %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="f1_weighted")
+        print("Weighted F1 Score:             %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="accuracy")
+        print("Accuracy:                      %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        pass
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="roc_auc")
+        print("Area Under ROC Curve (AUC):    %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        pass
+    try: 
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="jaccard")
+        print("Jaccard Similarity:            %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        pass
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="normalized_mutual_info_score")
+        print("Normalized Mutual Information: %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        pass
+    try: 
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="v_measure_score")
+        print("V-measure:                     %0.3f (sigma = %0.4f)" % (scores.mean(), scores.std()))
+    except ValueError:
+        pass
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="neg_mean_squared_error")
+        print("Mean Square Error (MSE):       %0.3f (sigma = %0.4f)" % (abs(scores.mean()), scores.std()))
+    except ValueError:
+        pass
+    try:
+        scores = cross_val_score(classifier, X, Y, cv=fold, scoring="r2")
+        print("R-square:                      %0.3f (sigma = %0.4f)" % (abs(scores.mean()), scores.std()))
+    except ValueError:
+        pass
     print("--------- End of Cross Validation Report ------------")
 
 def process_classifier(datafile, label, classifier, oclass, otype, 
@@ -205,7 +241,13 @@ def useScikitClassifier(classifier_type, datafile, classfile, classtype, resultf
     @param resultfile String: Path to write out the classified results.
     """
     taskText = {"ANN": "Classifying using Artificial Neural Network (ANN)",
-                "SVM": "Classifying using Support Vector Machine (SVM)"}
+                "BNB":"Classifying using Naive Bayes for Bernoulli Models (BNB)",
+                "CNB":"Classifying using Complement Naive Bayes (CNB)",
+                "DT": "Classifying using Decision Tree (DT)",
+                "GNB":"Classifying using Gaussian Naive Bayes (GNB)",
+                "MNB":"Classifying using Naive Bayes for Multinomial Models (MNB)",
+                "SVM": "Classifying using Support Vector Machine (SVM)",
+                }
     print("")
     print("Task: %s" % taskText[classifier_type])
     print("Parameters:")
@@ -273,7 +315,7 @@ def generateANN(datafile, label,
         
         python bactclass.py genANN --datafile=classifier_train.csv --label=Class --oclass=classifier_ANN.pickle --otype=pickle --hidden_layer_sizes=100 --activation=relu --solver=adam --learning_rate=constant --learning_rate_init=0.001 --power_t=0.5 --max_iteration=200 --shuffle=True --tolerance=0.001 --momentum=0.9 --nesterovs_momentum=True --beta_1=0.9 --beta_2=0.999 --epsilon=1e-8 --n_iter_no_change=10 --verbose=False --classparam=True --confusion=True --classreport=True --cross_validation=5
 
-    @param datafile String: Path to CSV data file used to generate SVM.
+    @param datafile String: Path to CSV data file used to generate ANN.
     @param label String: Column (field) name in the data file to indicate the class label.
     @param oclass String: Path to write out the generated classifier. Default = classifier_ANN.pickle
     @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
@@ -293,7 +335,7 @@ def generateANN(datafile, label,
     @param epsilon float: Value for numerical stability in "adam". Default = 1e-8
     @param n_iter_no_change Integer: Maximum number of epochs to not meet tolerance improvement when solver is "sgd" or "adam". Default = 10
     @param verbose Boolean: Flag to indicate whether to print progress messages. Default = False
-    @param classparam Boolean: Flag to indicate whether to print out SVM parameters. Default = True
+    @param classparam Boolean: Flag to indicate whether to print out ANN parameters. Default = True
     @param confusion Boolean: Flag to indicate whether to print out confusion matrix. Default = True
     @param classreport Boolean: Flag to indicate whether to print out classification report. Default = True
     @param cross_validation Integer: Number of cross validation (if any) to perform. If less than 2, cross validation will not be carried out. Default = 5
@@ -452,101 +494,35 @@ def generateDT(datafile, label,
                otype="pickle",
                criterion="gini",
                splitter="best",
+               max_depth=0,
+               min_samples_split=2,
+               min_samples_leaf=1,
+               min_weight_fraction_leaf=0.0,
+               max_leaf_nodes=0,
+               ccp_alpha=0.0,
                classparam=True, 
                confusion=True, 
                classreport=True,
                cross_validation=5):
     """!
+    Function to generate a decision tree from given data. 
 
-    @param datafile String: Path to CSV data file used to generate SVM.
+    Usage:
+        
+        python bactclass.py genDT --datafile=classifier_train.csv --label=Class --oclass=classifier_DT.pickle --otype=pickle --criterion=gini --splitter=best --max_depth=0 --min_samples_split=2 --min_samples_leaf=1 --min_weight_fraction_leaf=0.0 --max_leaf_nodes=0 --ccp_alpha=0.0 --classparam=True --confusion=True --classreport=True --cross_validation=5
+
+    @param datafile String: Path to CSV data file used to generate DT.
     @param label String: Column (field) name in the data file to indicate the class label.
-    @param oclass String: Path to write out the generated classifier. Default = classifier_SVM.pickle
+    @param oclass String: Path to write out the generated classifier. Default = classifier_DT.pickle
     @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
     @param criterion String: The function to measure the quality of a split. Allowable types are "gini" (Gini impurity) and "entropy" (information gain). Default = gini
     @param splitter String: The strategy used to choose the split at each node. Allowable types are "best" (best split) and "random" (best random split). Default = best
-
-max_depth int, default=None
-
-    The maximum depth of the tree. If None, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples.
-min_samples_split int or float, default=2
-
-    The minimum number of samples required to split an internal node:
-
-        If int, then consider min_samples_split as the minimum number.
-
-        If float, then min_samples_split is a fraction and ceil(min_samples_split * n_samples) are the minimum number of samples for each split.
-
-    Changed in version 0.18: Added float values for fractions.
-min_samples_leaf int or float, default=1
-
-    The minimum number of samples required to be at a leaf node. A split point at any depth will only be considered if it leaves at least min_samples_leaf training samples in each of the left and right branches. This may have the effect of smoothing the model, especially in regression.
-
-        If int, then consider min_samples_leaf as the minimum number.
-
-        If float, then min_samples_leaf is a fraction and ceil(min_samples_leaf * n_samples) are the minimum number of samples for each node.
-
-    Changed in version 0.18: Added float values for fractions.
-min_weight_fraction_leaf float, default=0.0
-
-    The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Samples have equal weight when sample_weight is not provided.
-max_features int, float or {"auto", "sqrt", "log2"}, default=None
-
-    The number of features to consider when looking for the best split:
-
-            If int, then consider max_features features at each split.
-
-            If float, then max_features is a fraction and int(max_features * n_features) features are considered at each split.
-
-            If "auto", then max_features=sqrt(n_features).
-
-            If "sqrt", then max_features=sqrt(n_features).
-
-            If "log2", then max_features=log2(n_features).
-
-            If None, then max_features=n_features.
-
-    Note: the search for a split does not stop until at least one valid partition of the node samples is found, even if it requires to effectively inspect more than max_features features.
-random_state int, RandomState instance, default=None
-
-    Controls the randomness of the estimator. The features are always randomly permuted at each split, even if splitter is set to "best". When max_features < n_features, the algorithm will select max_features at random at each split before finding the best split among them. But the best found split may vary across different runs, even if max_features=n_features. That is the case, if the improvement of the criterion is identical for several splits and one split has to be selected at random. To obtain a deterministic behaviour during fitting, random_state has to be fixed to an integer. See Glossary for details.
-max_leaf_nodes int, default=None
-
-    Grow a tree with max_leaf_nodes in best-first fashion. Best nodes are defined as relative reduction in impurity. If None then unlimited number of leaf nodes.
-min_impurity_decrease float, default=0.0
-
-    A node will be split if this split induces a decrease of the impurity greater than or equal to this value.
-
-    The weighted impurity decrease equation is the following:
-
-    N_t / N * (impurity - N_t_R / N_t * right_impurity
-                        - N_t_L / N_t * left_impurity)
-
-    where N is the total number of samples, N_t is the number of samples at the current node, N_t_L is the number of samples in the left child, and N_t_R is the number of samples in the right child.
-
-    N, N_t, N_t_R and N_t_L all refer to the weighted sum, if sample_weight is passed.
-
-    New in version 0.19.
-min_impurity_split float, default=0
-
-    Threshold for early stopping in tree growth. A node will split if its impurity is above the threshold, otherwise it is a leaf.
-
-    Deprecated since version 0.19: min_impurity_split has been deprecated in favor of min_impurity_decrease in 0.19. The default value of min_impurity_split has changed from 1e-7 to 0 in 0.23 and it will be removed in 0.25. Use min_impurity_decrease instead.
-class_weight dict, list of dict or "balanced", default=None
-
-    Weights associated with classes in the form {class_label: weight}. If None, all classes are supposed to have weight one. For multi-output problems, a list of dicts can be provided in the same order as the columns of y.
-
-    Note that for multioutput (including multilabel) weights should be defined for each class of every column in its own dict. For example, for four-class multilabel classification weights should be [{0: 1, 1: 1}, {0: 1, 1: 5}, {0: 1, 1: 1}, {0: 1, 1: 1}] instead of [{1:1}, {2:5}, {3:1}, {4:1}].
-
-    The "balanced" mode uses the values of y to automatically adjust weights inversely proportional to class frequencies in the input data as n_samples / (n_classes * np.bincount(y))
-
-    For multi-output, the weights of each column of y will be multiplied.
-
-    Note that these weights will be multiplied with sample_weight (passed through the fit method) if sample_weight is specified.
-
-ccp_alpha float, default=0.0
-
-    Complexity parameter used for Minimal Cost-Complexity Pruning. The subtree with the largest cost complexity that is smaller than ccp_alpha will be chosen. By default, no pruning is performed.
-
+    @param max_depth Integer: The maximum depth of the tree. If less than 1, then nodes are expanded until all leaves are pure or until all leaves contain less than min_samples_split samples. Default = 0
+    @param min_samples_split Integer: The minimum number of samples required to split an internal node. Default = 2
+    @param min_samples_leaf Integer: The minimum number of samples required to be at a leaf node. A split point at any depth will only be considered if it leaves at least min_samples_leaf training samples in each of the left and right branches. This may have the effect of smoothing the model, especially in regression. Default = 1
+    @param min_weight_fraction_leaf Float: The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node. Default = 0.0
+    @param max_leaf_nodes Integer: Grow a tree with max_leaf_nodes in best-first fashion. Best nodes are defined as relative reduction in impurity. If less than 1, then unlimited number of leaf nodes. Default = 0
+    @param ccp_alpha Float: Complexity parameter used for Minimal Cost-Complexity Pruning. The subtree with the largest cost complexity that is smaller than ccp_alpha will be chosen. If zero, no pruning is performed. Default = 0.0
     @param classparam Boolean: Flag to indicate whether to print out SVM parameters. Default = True
     @param confusion Boolean: Flag to indicate whether to print out confusion matrix. Default = True
     @param classreport Boolean: Flag to indicate whether to print out classification report. Default = True
@@ -560,21 +536,295 @@ ccp_alpha float, default=0.0
     print("    Classification Label = " + str(label))
     print("    Citerion = " + str(criterion))
     print("    Splitting Strategy = " + str(splitter))
-
+    print("    Maximum Tree Depth = " + str(max_depth))
+    print("    Minimum Samples to Split = " + str(min_samples_split))
+    print("    Minimum Samples per Leaf = " + str(min_samples_leaf))
+    print("    Minimum Weight Fraction per Leaf = " + str(min_weight_fraction_leaf))
+    print("    Maximum number of Leaf Nodes = " + str(max_leaf_nodes))
+    print("    Minimal Cost-Complexity Pruning Parameter = " + str(ccp_alpha))
     print("    Classifier File = " + str(oclass))
     print("    Classifier File Type = " + str(otype))
     print("")
+    max_depth = int(max_depth)
+    if max_depth == 0: max_depth = None
+    max_leaf_nodes = int(max_leaf_nodes)
+    if max_leaf_nodes == 0: max_leaf_nodes = None
     classifier = DecisionTreeClassifier(criterion=str(criterion),
-                                        splitter=str(splitter))
+                                        splitter=str(splitter),
+                                        max_depth=max_depth,
+                                        min_samples_split=int(min_samples_split),
+                                        min_samples_leaf=int(min_samples_leaf),
+                                        min_weight_fraction_leaf=float(min_weight_fraction_leaf),
+                                        max_leaf_nodes=max_leaf_nodes,
+                                        ccp_alpha=float(ccp_alpha))
     process_classifier(datafile, label, classifier, oclass, otype, 
                        classparam, confusion, classreport, cross_validation)
     print("===================== DT Generated =====================")
+    
+
+def useDT(datafile, classfile, classtype, resultfile):
+    """!
+    Function to use a previously generated decision tree (DT) to classify data.
+
+    Usage:
+
+        python bactclass.py useDT --datafile=classifier_use.csv --classfile=classifier_DT.pickle --classtype=pickle --resultfile=classifier_result.csv
+    
+    @param datafile String: Path to CSV file containing data to be classified.
+    @param classfile String: Path to the generated classifier.
+    @param classtype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib".
+    @param resultfile String: Path to write out the classified results.
+    """
+    useScikitClassifier("DT", datafile, classfile, classtype, resultfile)
+    
+    
+def generateBNB(datafile, label, 
+                oclass="classifier_BNB.pickle", 
+                otype="pickle",
+                alpha=1.0,
+                binarize=0.0,
+                fit_prior=True,
+                classparam=True, 
+                confusion=True, 
+                classreport=True,
+                cross_validation=5):
+    """!
+    Function to generate a Naive Bayes classifier for Bernoulli Models (BNB) from given data. 
+
+    Usage:
+        
+        python bactclass.py genBNB --datafile=classifier_train.csv --label=Class --oclass=classifier_BNB.pickle --otype=pickle --alpha=1.0 --binarize=0.0 --fit_prior=True --classparam=True --confusion=True --classreport=True --cross_validation=5
+
+    @param datafile String: Path to CSV data file used to generate BNB.
+    @param label String: Column (field) name in the data file to indicate the class label.
+    @param oclass String: Path to write out the generated classifier. Default = classifier_BNB.pickle
+    @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
+    @param alpha Float: Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing). Default = 1.0
+    @param binarize Float: Threshold for binarizing (mapping to booleans) of sample features. Default=0.0
+    @param fit_prior Boolean: Flag to indicate whether to learn class prior probabilities or not. If False, a uniform prior will be used. Default = True
+    @param classparam Boolean: Flag to indicate whether to print out BNB parameters. Default = True
+    @param confusion Boolean: Flag to indicate whether to print out confusion matrix. Default = True
+    @param classreport Boolean: Flag to indicate whether to print out classification report. Default = True
+    @param cross_validation Integer: Number of cross validation (if any) to perform. If less than 2, cross validation will not be carried out. Default = 5
+    """
+    from sklearn.naive_bayes import BernoulliNB
+    print("")
+    print("Task: Generate Naive Bayes Classifier for Bernoulli Models (BNB)")
+    print("Parameters:")
+    print("    Data File = " + str(datafile))
+    print("    Classification Label = " + str(label))
+    print("    Additive Smoothing Parameter = " + str(alpha))
+    print("    Binarizing Threshold = " + str(binarize))
+    print("    Learn Prior Probabilities = " + str(fit_prior))
+    print("    Classifier File = " + str(oclass))
+    print("    Classifier File Type = " + str(otype))
+    print("")
+    classifier = BernoulliNB(alpha=float(alpha),
+                             binarize=float(binarize),
+                             fit_prior=fit_prior)
+    process_classifier(datafile, label, classifier, oclass, otype, 
+                       classparam, confusion, classreport, cross_validation)
+    print("================ Bernoulli NB Generated ================")
+    
+def useBNB(datafile, classfile, classtype, resultfile):
+    """!
+    Function to use a previously generated Bernoulli Naive Bayes (BNB) classifier to classify data.
+
+    Usage:
+        python bactclass.py useBNB --datafile=classifier_use.csv --classfile=classifier_BNB.pickle --classtype=pickle --resultfile=classifier_result.csv
+    
+    @param datafile String: Path to CSV file containing data to be classified.
+    @param classfile String: Path to the generated classifier.
+    @param classtype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib".
+    @param resultfile String: Path to write out the classified results.
+    """
+    useScikitClassifier("BNB", datafile, classfile, classtype, resultfile)
+    
+def generateCNB(datafile, label, 
+                oclass="classifier_CNB.pickle", 
+                otype="pickle",
+                alpha=1.0,
+                fit_prior=True,
+                classparam=True, 
+                confusion=True, 
+                classreport=True,
+                cross_validation=5):
+    """!
+    Function to generate a Complement Naive Bayes classifier (CNB) from given data. 
+
+    Usage:
+        
+        python bactclass.py genCNB --datafile=classifier_train.csv --label=Class --oclass=classifier_CNB.pickle --otype=pickle --alpha=1.0 --fit_prior=True --classparam=True --confusion=True --classreport=True --cross_validation=5
+
+    @param datafile String: Path to CSV data file used to generate CNB.
+    @param label String: Column (field) name in the data file to indicate the class label.
+    @param oclass String: Path to write out the generated classifier. Default = classifier_CNB.pickle
+    @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
+    @param alpha Float: Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing). Default = 1.0
+    @param fit_prior Boolean: Flag to indicate whether to learn class prior probabilities or not. If False, a uniform prior will be used. Default = True
+    @param classparam Boolean: Flag to indicate whether to print out CNB parameters. Default = True
+    @param confusion Boolean: Flag to indicate whether to print out confusion matrix. Default = True
+    @param classreport Boolean: Flag to indicate whether to print out classification report. Default = True
+    @param cross_validation Integer: Number of cross validation (if any) to perform. If less than 2, cross validation will not be carried out. Default = 5
+    """
+    from sklearn.naive_bayes import ComplementNB
+    print("")
+    print("Task: Generate Complement Naive Bayes (CNB) Classifier")
+    print("Parameters:")
+    print("    Data File = " + str(datafile))
+    print("    Classification Label = " + str(label))
+    print("    Additive Smoothing Parameter = " + str(alpha))
+    print("    Learn Prior Probabilities = " + str(fit_prior))
+    print("    Classifier File = " + str(oclass))
+    print("    Classifier File Type = " + str(otype))
+    print("")
+    classifier = ComplementNB(alpha=float(alpha),
+                              fit_prior=fit_prior)
+    process_classifier(datafile, label, classifier, oclass, otype, 
+                       classparam, confusion, classreport, cross_validation)
+    print("================ Complement NB Generated ================")
+    
+def useCNB(datafile, classfile, classtype, resultfile):
+    """!
+    Function to use a previously generated Complement Naive Bayes (CNB) classifier to classify data.
+    
+    Usage:
+        python bactclass.py useCNB --datafile=classifier_use.csv --classfile=classifier_CNB.pickle --classtype=pickle --resultfile=classifier_result.csv
+    
+    @param datafile String: Path to CSV file containing data to be classified.
+    @param classfile String: Path to the generated classifier.
+    @param classtype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib".
+    @param resultfile String: Path to write out the classified results.
+    """
+    useScikitClassifier("CNB", datafile, classfile, classtype, resultfile)
+
+def generateMNB(datafile, label, 
+                oclass="classifier_MNB.pickle", 
+                otype="pickle",
+                alpha=1.0,
+                fit_prior=True,
+                classparam=True, 
+                confusion=True, 
+                classreport=True,
+                cross_validation=5):
+    """!
+    Function to generate a Naive Bayes classifier for Multinomial Models (MNB) from given data. 
+
+    Usage:
+        
+        python bactclass.py genMNB --datafile=classifier_train.csv --label=Class --oclass=classifier_BNB.pickle --otype=pickle --alpha=1.0 --fit_prior=True --classparam=True --confusion=True --classreport=True --cross_validation=5
+
+    @param datafile String: Path to CSV data file used to generate BNB.
+    @param label String: Column (field) name in the data file to indicate the class label.
+    @param oclass String: Path to write out the generated classifier. Default = classifier_BNB.pickle
+    @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
+    @param alpha Float: Additive (Laplace/Lidstone) smoothing parameter (0 for no smoothing). Default = 1.0
+    @param fit_prior Boolean: Flag to indicate whether to learn class prior probabilities or not. If False, a uniform prior will be used. Default = True
+    @param classparam Boolean: Flag to indicate whether to print out MNB parameters. Default = True
+    @param confusion Boolean: Flag to indicate whether to print out confusion matrix. Default = True
+    @param classreport Boolean: Flag to indicate whether to print out classification report. Default = True
+    @param cross_validation Integer: Number of cross validation (if any) to perform. If less than 2, cross validation will not be carried out. Default = 5
+    """
+    from sklearn.naive_bayes import MultinomialNB
+    print("")
+    print("Task: Generate Naive Bayes Classifier for Multinomial Models (MNB)")
+    print("Parameters:")
+    print("    Data File = " + str(datafile))
+    print("    Classification Label = " + str(label))
+    print("    Additive Smoothing Parameter = " + str(alpha))
+    print("    Learn Prior Probabilities = " + str(fit_prior))
+    print("    Classifier File = " + str(oclass))
+    print("    Classifier File Type = " + str(otype))
+    print("")
+    classifier = MultinomialNB(alpha=float(alpha),
+                               fit_prior=fit_prior)
+    process_classifier(datafile, label, classifier, oclass, otype, 
+                       classparam, confusion, classreport, cross_validation)
+    print("=============== Multinomial NB Generated ===============")
+    
+def useMNB(datafile, classfile, classtype, resultfile):
+    """!
+    Function to use a previously generated Multinomial Naive Bayes (MNB) classifier to classify data.
+    
+    Usage:
+        python bactclass.py useMNB --datafile=classifier_use.csv --classfile=classifier_MNB.pickle --classtype=pickle --resultfile=classifier_result.csv
+    
+    @param datafile String: Path to CSV file containing data to be classified.
+    @param classfile String: Path to the generated classifier.
+    @param classtype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib".
+    @param resultfile String: Path to write out the classified results.
+    """
+    useScikitClassifier("MNB", datafile, classfile, classtype, resultfile)
+
+def generateGNB(datafile, label, 
+                oclass="classifier_GNB.pickle", 
+                otype="pickle",
+                var_smoothing=1e-9,
+                classparam=True, 
+                confusion=True, 
+                classreport=True,
+                cross_validation=5):
+    """!
+    Function to generate a Gaussian Naive Bayes classifier (GNB) from given data. 
+
+    Usage:
+        
+        python bactclass.py genGNB --datafile=classifier_train.csv --label=Class --oclass=classifier_GNB.pickle --otype=pickle --var_smoothing=1e-9 --classparam=True --confusion=True --classreport=True --cross_validation=5
+
+    @param datafile String: Path to CSV data file used to generate GNB.
+    @param label String: Column (field) name in the data file to indicate the class label.
+    @param oclass String: Path to write out the generated classifier. Default = classifier_GNB.pickle
+    @param otype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib". Default = pickle
+    @param var_smoothing Float: Portion of the largest variance of all features that is added to variances for calculation stability. Default = 1e-9
+    @param classparam Boolean: Flag to indicate whether to print out GNB parameters. Default = True
+    @param confusion Boolean: Flag to indicate whether to print out confusion matrix. Default = True
+    @param classreport Boolean: Flag to indicate whether to print out classification report. Default = True
+    @param cross_validation Integer: Number of cross validation (if any) to perform. If less than 2, cross validation will not be carried out. Default = 5
+    """
+    from sklearn.naive_bayes import GaussianNB
+    print("")
+    print("Task: Generate Gaussian Naive Bayes Classifier")
+    print("Parameters:")
+    print("    Data File = " + str(datafile))
+    print("    Classification Label = " + str(label))   
+    print("    Variance Smoothing = " + str(var_smoothing))
+    print("    Classifier File = " + str(oclass))
+    print("    Classifier File Type = " + str(otype))
+    print("")
+    classifier = GaussianNB(var_smoothing=float(var_smoothing))
+    process_classifier(datafile, label, classifier, oclass, otype, 
+                       classparam, confusion, classreport, cross_validation)
+    print("================= Gaussian NB Generated =================")
+    
+def useGNB(datafile, classfile, classtype, resultfile):
+    """!
+    Function to use a previously generated Gaussian Naive Bayes classifier (GNB) classifier to classify data.
+
+    Usage:
+        python bactclass.py useGNB --datafile=classifier_use.csv --classfile=classifier_GNB.pickle --classtype=pickle --resultfile=classifier_result.csv
+    
+    @param datafile String: Path to CSV file containing data to be classified.
+    @param classfile String: Path to the generated classifier.
+    @param classtype String: Type of file to write out the generated classifier. Allowable types are "pickle" and "joblib".
+    @param resultfile String: Path to write out the classified results.
+    """
+    useScikitClassifier("GNB", datafile, classfile, classtype, resultfile)
 
 
 if __name__ == "__main__":
     exposed_functions = {"genANN": generateANN,
+                         "genBNB": generateBNB,
+                         "genCNB": generateCNB,
+                         "genDT": generateDT,
+                         "genGNB": generateGNB,
+                         "genMNB": generateMNB,
                          "genSVM": generateSVM,
                          "recycle": recycle,
                          "useANN": useANN,
+                         "useBNB": useBNB,
+                         "useCNB": useCNB,
+                         "useDT": useDT,
+                         "useGNB": useGNB,
+                         "useMNB": useMNB,
                          "useSVM": useSVM}
     fire.Fire(exposed_functions)
